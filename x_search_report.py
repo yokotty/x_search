@@ -6,9 +6,9 @@ X投稿収集・要約ツール
 X（旧Twitter）投稿をGrok APIのX Searchツールで収集・要約する。
 
 使用方法:
-    python x_search_report.py ai_agent_news/02260410.md
-    python x_search_report.py ai_agent_news/02260410.md -o output/report.md
-    XAI_API_KEY=your_key python x_search_report.py ai_agent_news/02260410.md
+    python x_search_report.py input/20260410.md
+    python x_search_report.py input/20260410.md -o output/report.md
+    XAI_API_KEY=your_key python x_search_report.py input/20260410.md
 """
 
 import argparse
@@ -116,9 +116,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 例:
-  python x_search_report.py ai_agent_news/02260410.md
-  python x_search_report.py ai_agent_news/02260410.md -o reports/x_reactions.md
-  python x_search_report.py ai_agent_news/02260410.md --model grok-3-mini
+  python x_search_report.py input/20260410.md
+  python x_search_report.py input/20260410.md -o reports/x_reactions.md
+  python x_search_report.py input/20260410.md --model grok-4-fast-reasoning
         """,
     )
     parser.add_argument("input", help="入力マークダウンファイルのパス")
