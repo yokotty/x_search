@@ -9,7 +9,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
-from x_search_report import read_markdown, generate_report, collect_x_reactions, main
+from x_search_report import read_markdown, generate_report, collect_x_reactions, extract_date_range, main
 
 
 # ------------------------------------------------------------------ #
@@ -56,6 +56,32 @@ def test_generate_report_has_header_table():
 
 
 # ------------------------------------------------------------------ #
+# extract_date_range
+# ------------------------------------------------------------------ #
+
+def test_extract_date_range_from_filename():
+    from_date, to_date = extract_date_range("input/20260410.md")
+    assert to_date == "2026-04-10"
+    assert from_date == "2026-04-03"
+
+
+def test_extract_date_range_7days_before():
+    from_date, to_date = extract_date_range("input/20260101.md")
+    assert from_date == "2025-12-25"
+    assert to_date == "2026-01-01"
+
+
+def test_extract_date_range_fallback_to_today(tmp_path):
+    from datetime import datetime, timedelta
+    md = tmp_path / "no_date.md"
+    from_date, to_date = extract_date_range(str(md))
+    today = datetime.now().strftime("%Y-%m-%d")
+    week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    assert to_date == today
+    assert from_date == week_ago
+
+
+# ------------------------------------------------------------------ #
 # collect_x_reactions
 # ------------------------------------------------------------------ #
 
@@ -67,7 +93,7 @@ def test_collect_x_reactions_calls_responses_api():
     mock_client.responses.create.return_value = mock_response
 
     with patch("x_search_report.OpenAI", return_value=mock_client):
-        result = collect_x_reactions("ニュース本文", "test_key", "grok-4-fast-non-reasoning")
+        result = collect_x_reactions("ニュース本文", "test_key", "grok-4-fast-non-reasoning", "2026-04-03", "2026-04-10")
 
     assert result == "## 1. テスト\n\nX上の反応"
 
@@ -80,7 +106,7 @@ def test_collect_x_reactions_passes_x_search_tool():
     mock_client.responses.create.return_value = mock_response
 
     with patch("x_search_report.OpenAI", return_value=mock_client):
-        collect_x_reactions("本文", "test_key", "grok-4-fast-non-reasoning")
+        collect_x_reactions("本文", "test_key", "grok-4-fast-non-reasoning", "2026-04-03", "2026-04-10")
 
     _, kwargs = mock_client.responses.create.call_args
     assert {"type": "x_search"} in kwargs["tools"]
@@ -94,7 +120,7 @@ def test_collect_x_reactions_uses_xai_base_url():
     mock_client.responses.create.return_value = mock_response
 
     with patch("x_search_report.OpenAI", return_value=mock_client) as mock_openai:
-        collect_x_reactions("本文", "test_key", "grok-4-fast-non-reasoning")
+        collect_x_reactions("本文", "test_key", "grok-4-fast-non-reasoning", "2026-04-03", "2026-04-10")
 
     _, kwargs = mock_openai.call_args
     assert kwargs["base_url"] == "https://api.x.ai/v1"
@@ -109,11 +135,27 @@ def test_collect_x_reactions_includes_news_content_in_input():
 
     news = "## マネーフォワード\n\nAI Cowork 発表"
     with patch("x_search_report.OpenAI", return_value=mock_client):
-        collect_x_reactions(news, "test_key", "grok-4-fast-non-reasoning")
+        collect_x_reactions(news, "test_key", "grok-4-fast-non-reasoning", "2026-04-03", "2026-04-10")
 
     _, kwargs = mock_client.responses.create.call_args
     user_content = kwargs["input"][0]["content"]
     assert news in user_content
+
+
+def test_collect_x_reactions_includes_date_range_in_input():
+    mock_response = MagicMock()
+    mock_response.output_text = "結果"
+
+    mock_client = MagicMock()
+    mock_client.responses.create.return_value = mock_response
+
+    with patch("x_search_report.OpenAI", return_value=mock_client):
+        collect_x_reactions("本文", "test_key", "grok-4-fast-non-reasoning", "2026-04-03", "2026-04-10")
+
+    _, kwargs = mock_client.responses.create.call_args
+    user_content = kwargs["input"][0]["content"]
+    assert "2026-04-03" in user_content
+    assert "2026-04-10" in user_content
 
 
 # ------------------------------------------------------------------ #
